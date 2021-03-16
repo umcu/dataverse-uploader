@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
-"""Archivematica -> Dataverse upload function."""
+"""Archivematica -> Dataverse upload function.
+
+This uploader consists of one script and a Python package 'dave'. 
+It was inspired by the project pyDataverse by Stefan Kasberger, which was released under 
+the MIT License(see PyPI).
+"""
 
 import sys
 from datetime import datetime
