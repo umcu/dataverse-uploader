@@ -1,0 +1,16 @@
+{"status":"OK",
+"data":{"files":
+[{"description":"description of file 1",
+  "label":"description.json",
+  "restricted":false,
+  "directoryLabel":"foo/bar",
+  "version":1,
+  "datasetVersionId":4,
+  "categories":["Data"],
+  "dataFile":{"id":63,"persistentId":"","pidURL":"",
+    "filename":"description.json","contentType":"application/json",
+    "filesize":244,"description":"description of file 1",
+    "storageIdentifier":"171d0350487-867543c06935",
+    "rootDataFileId":-1,"md5":"73ddb07268f0e151a3236c79a4a1b6ac",
+    "checksum":{"type":"MD5","value":"73ddb07268f0e151a3236c79a4a1b6ac"},
+"creationDate":"2020-05-01"}}]}}
