@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+
+"""Archivematica -> Dataverse upload function."""
+
+import sys
+from datetime import datetime
+from os import walk
+from os.path import join, split, relpath, abspath
+from xml.etree.ElementTree import parse
+from dave import Connection
+
+# Dataverse parameters
+DATAVERSE_URL = 'http://localhost:8080'
+DATAVERSE_API_TOKEN = '2a4e470d-c316-48c3-9a30-1d819b0bdbc8'
+# upload and locking codes
+DISALLOW, CONDITIONAL, ALLOW = 0, 1, 2
+
+# XML auxiliary functions
+def parse_xml(path):
+    tree = parse(path)
+    return tree.getroot()
+
+namespaces = {
+    'xlink':   'http://www.w3.org/1999/xlink',
+    'mets':    'http://www.loc.gov/METS/',
+    'premis':  'http://www.loc.gov/premis/v3',
+    'dc':      'http://purl.org/dc/elements/1.1/',
+    'dcterms': 'http://purl.org/dc/terms/'
+}
+
+def find_one(node, path):
+    return node.find(path, namespaces)
+
+def find_all(node, path):
+    return node.findall(path, namespaces)
+
+# Tree node classes
+class Node:
+    """Node is the base class for Folder and File
+       Instance variables:
+           - kind: type of node
+           - id: identifier of node (usually unique within the tree)
+           - name: name of node (last part of path)
+           - path: path of node
+           - parent: parent node
+           - children: list of child nodes
+
+       Instance methods:
+           - render: abstract method
+           - root: find root of tree
+    """
+    def __init__(self, name, path, parent=None):
+        """construct Node with given name, path and parent"""
+        self.kind = 'Node'
+        self.id = ''
+        self.name = name
+        self.path = path
+        self.parent = parent
+        self.children = []
+        self.tags = []
+
+    def add(self, node):
+        """add child node"""
+        node.parent = self
+        self.children.append(node)
+
+    def __str__(self):
+        return '{} {}'.format(self.kind, self.path)
+
+    def root(self):
+        """Find root of tree in which this node lives. Follow parent chain until you get 'None'"""
+        this = self
+        while this.parent is not None:
+            this = this.parent
+        return this
+
+class Folder(Node):
+    def __init__(self, name, path, parent):
+        """create new Folder node"""
+        super().__init__(name, path, parent)
+        self.kind = 'Folder'
+
+    def file(self, name):
+        """return file node with given name in this folder"""
+        matches = [child for child in self.children
+                   if child.kind == 'File' and child.name]
+        return matches[0] if matches else None
+
+    def find(self, prefix):
+        """return file node with name that starts with prefix"""
+        matches = [child for child in self.children
+                   if child.kind == 'File' and child.name.startswith(prefix)]
+        return matches[0] if matches else None
+
+    def files(self):
+        """return all file nodes in this folder"""
+        return [child for child in self.children if child.kind == 'File']
+
+    def folder(self, name):
+        """return folder node with given name in this folder"""
+        matches = [child for child in self.children
+                   if child.kind == 'Folder' and child.name == name]
+        return matches[0] if matches else None
+
+    def folders(self):
+        """return all folder nodes in this folder"""
+        return [child for child in self.children if child.kind == 'Folder']
+
+class File(Node):
+    def __init__(self, name, path, parent):
+        """create new File node"""
+        super().__init__(name, path, parent)
+        self.kind = 'File'
+
+def generate_tree(dip_root, debug=False):
+    """generate site tree from files and directories in input directory"""
+    folder_queue = {}
+    for dirpath, dirnames, filenames in walk(dip_root, topdown=False):
+        dirpath_abs = abspath(dirpath)
+        dirpath_rel = relpath(dirpath, dip_root)
+        folder_name = split(dirpath_rel)[1]
+        if dirpath_rel == '.':
+            dirpath_rel, folder_name = '', ''
+        if debug:
+            print('folder: name={} path={}'.format(folder_name, dirpath_abs))
+        folder = Folder(folder_name, dirpath_abs, None)
+        for name in set(dirnames) & set(folder_queue.keys()):
+            folder.add(folder_queue[name])
+        for name in filenames:  # files become children of this folder
+            filepath_abs = join(dirpath_abs, name)
+            if debug:
+                print('file: name={} path={}'.format(name, filepath_abs))
+            this = File(name, filepath_abs, None)
+            folder.add(this)
+        folder_queue[folder_name] = folder
+    # by definition: folder with name = '' is the root of the site tree
+    return folder_queue['']
+
+def create_dataset():
+    return {}
+
+def extract_metadata(mets):
+    dc_terms = find_one(mets, './/dcterms:dublincore')
+    ds_metadata = {}
+    for child in dc_terms:
+        key = child.tag.split('}')[1]
+        ds_metadata[key] = child.text
+    return ds_metadata
+
+if __name__ == '__main__':
+    dip_tree = generate_tree(sys.argv[1], debug=False)
+    objects_folder = dip_tree.folder('objects')
+    mets_file = [f for f in dip_tree.files() if f.name.startswith('METS') and f.name.endswith('.xml')][0]
+    mets_tree = parse(mets_file.path)
+    mets = mets_tree.getroot()
+    # Extract package metadata
+    top_metadata = extract_metadata(mets)
+    # print('Package metadata: {}'.format(top_metadata))
+    # open connection to Dataverse server
+    connection = Connection(base_url=DATAVERSE_URL, api_token=DATAVERSE_API_TOKEN)
+    root = connection.get_dataverse(':root')
+    # find the right dataverse
+    # test with: 3cb0/dd4e/25f2/418c/9530/30e5/fc2e/bb5b/20-999-easter4-f3025f9d-cede-4c7b-b994-e45109ad9281
+    dataverse_name = top_metadata['relation']
+    print('Add new dataset to dataverse {}'.format(dataverse_name))
+    dataverse = root.find_dataverse(dataverse_name)
+    # create new dataset in this dataverse
+    # provide metadata dict: $title $authorname $authoraffiliation
+    #                        $contactemail $contactname $description.
+    now = datetime.now().strftime('%H%M%S')
+    ds_metadata = {
+        'title':             top_metadata['title'] + ' ' + now,
+        'authorname':        top_metadata['creator'],
+        'authoraffiliation': top_metadata['publisher'],
+        'contactemail':      'dac@umcutrecht.nl',
+        'contactname':       top_metadata['creator'],
+        'description':       top_metadata['description']
+    }
+    dataset = dataverse.create_dataset(ds_metadata)
+    filesec = find_one(mets, "./mets:fileSec/mets:fileGrp[@USE='original']")
+    for file in find_all(filesec, './mets:file'):
+        flocat = find_one(file, './mets:FLocat').attrib['{http://www.w3.org/1999/xlink}href']
+        flocat = flocat.replace('objects/', '')
+        fid = file.attrib['ID'].replace('file-', '')
+        admid = file.attrib['ADMID']
+        amdsec = find_one(mets, "./mets:amdSec[@ID='{}']".format(admid))
+        ilk = DISALLOW
+        rights_granted = find_one(amdsec, './/premis:rightsGranted')
+        if rights_granted:
+            act = find_one(rights_granted, './premis:act').text
+            restriction = find_one(rights_granted, './premis:restriction').text
+            if act == 'disseminate':
+                if restriction == 'Allow':
+                    ilk = ALLOW
+                elif restriction == 'Conditional':
+                    ilk = CONDITIONAL
+        else:
+            print('no rights information found')
+        # print('file {}: admSec={} ilk={} path={}'.format(fid, admid, ilk, flocat))
+        object_file = objects_folder.find(fid)
+        if object_file:
+            object_file.ilk = ilk
+            parts = split(flocat)
+            object_file.upload_path = parts[0]
+            object_file.upload_file = parts[1]
+        else:
+            print('NOT FOUND')
+    for object_file in objects_folder.files():
+        df_metadata = {'description':    object_file.upload_file,
+                       'directoryLabel': object_file.upload_path}
+        if object_file.ilk == DISALLOW:
+            print('SKIP   {}'.format(object_file.upload_file))
+            continue
+        if object_file.ilk == CONDITIONAL:
+            df_metadata['restrict'] = True
+            remark = 'ACCESS RESTRICTED'
+        else:  # file_object.ilk == GREEN:
+            df_metadata['restrict'] = False
+            remark = ''
+        print('UPLOAD {} -> {} {}'.format(object_file.upload_file,
+                                          object_file.upload_path, remark))
+        dataset.add_file(object_file.path, df_metadata)
