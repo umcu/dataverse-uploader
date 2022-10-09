@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+import json
+from string import Template
+from dave import Api, read_file, terms
+
+# prod_api = Api('https://dataverse.nl', '7cfc5b8f-3c8d-4c50-8bd5-2a56ad1ef51b')
+demo_api = Api('https://demo.dataverse.nl', '5bf24ffd-1789-480f-b8a2-4ee18a9b895a')
+
+"""The metadata should be in a dictionary based on a JSON file with the minimum required
+metadata, `dataset-minimal-metadata.json` (see Dataverse API documentation).
+
+The contents of this file is a template string with replacement fields:
+$title $authorname $authoraffiliation $contactemail $contactname $description.
+The replacements are in the dict variable `props`.
+
+To this metadata dictionary we add the Terms settings, of which there are 4 types."""
+
+template = read_file('dataset-minimal-metadata.json')
+props = {
+    'title': "Test dataset 2", 'authorname': "Test author", 'authoraffiliation': "UMCU",
+    'contactemail': 'dac@umcutrecht.nl', 'contactname': "Test author",
+    'description': "Dataset created via API, including terms"
+}
+metadata = json.loads(Template(template).substitute(props))
+metadata['datasetVersion'].update(terms['type_1'])
+result = demo_api.dataset_create(dataverse_id='45', props=metadata)
+print(json.dumps(result, sort_keys=True, indent=2))
