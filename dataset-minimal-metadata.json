@@ -36,4 +36,5 @@
                 "value": "$description"}}]},
           {"typeName": "subject",
            "value": ["Medicine, Health and Life Sciences"],
-           "typeClass": "controlledVocabulary", "multiple": true}]}}}}
+           "typeClass": "controlledVocabulary", "multiple": true}]}}}
+}
