@@ -5,9 +5,6 @@
 This uploader consists of one script and a Python package 'dave'. 
 It was inspired by the project pyDataverse by Stefan Kasberger, which was released under 
 the MIT License(see PyPI).
-
-API-token demo 5bf24ffd-1789-480f-b8a2-4ee18a9b895a
-API-token prod 7cfc5b8f-3c8d-4c50-8bd5-2a56ad1ef51b
 """
 
 import sys
