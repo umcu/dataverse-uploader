@@ -16,7 +16,7 @@ from dave import Connection
 
 # Dataverse parameters
 DATAVERSE_URL = 'http://localhost:8080'
-DATAVERSE_API_TOKEN = '2a4e470d-c316-48c3-9a30-1d819b0bdbc8'
+DATAVERSE_API_TOKEN = 'xxxxxxxx-yyyy-zzzz-wwww-vvvvvvvvvvvv'
 # upload and locking codes
 DISALLOW, CONDITIONAL, ALLOW = 0, 1, 2
 
