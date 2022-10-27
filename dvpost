@@ -4,8 +4,8 @@ import json
 from string import Template
 from dave import Api, read_file, terms
 
-# prod_api = Api('https://dataverse.nl', '7cfc5b8f-3c8d-4c50-8bd5-2a56ad1ef51b')
-demo_api = Api('https://demo.dataverse.nl', '5bf24ffd-1789-480f-b8a2-4ee18a9b895a')
+# prod_api = Api('https://dataverse.nl', 'zzzzzzz-yyyy-xxxx-wwww-vvvvvvvvvvvv')
+demo_api = Api('https://demo.dataverse.nl', 'zzzzzzz-yyyy-xxxx-wwww-vvvvvvvvvvvv')
 
 """The metadata should be in a dictionary based on a JSON file with the minimum required
 metadata, `dataset-minimal-metadata.json` (see Dataverse API documentation).
