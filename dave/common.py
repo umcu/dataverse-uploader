@@ -1,4 +1,5 @@
 import csv, json
+from os.path import expanduser
 
 class DataverseError(Exception):
     pass
@@ -17,7 +18,7 @@ def dict_to_json(data):
 
 def read_file(filename, mode='r'):
     try:
-        with open(filename, mode) as f:
+        with open(expanduser(filename), mode) as f:
             data = f.read()
         return data
     except Exception as e:
@@ -25,7 +26,7 @@ def read_file(filename, mode='r'):
 
 def write_file(filename, data, mode='w'):
     try:
-        with open(filename, mode) as f:
+        with open(expanduser(filename), mode) as f:
             f.write(data)
     except Exception as e:
         raise IOError('Error while writing file {} ({})'.format(filename, str(e)))

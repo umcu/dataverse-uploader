@@ -13,6 +13,9 @@ class Api:
         self.api_token = api_token
         self.headers = {'X-Dataverse-key': api_token, 'Content-Type': 'application/json'}
 
+    def __str__(self):
+        return f"Api(url='{self.base_url}', key='{self.api_token}')"
+
     """An HTTP request results in a response.
     Each response has a 3-digit status code.
     The first digit determines the reponse class:

@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 
-import json
+import json, argparse
 from string import Template
-from dave import Api, read_file, terms
+from dave import Api, read_file, terms, read_file_json
 
-# prod_api = Api('https://dataverse.nl', 'zzzzzzz-yyyy-xxxx-wwww-vvvvvvvvvvvv')
-demo_api = Api('https://demo.dataverse.nl', 'zzzzzzz-yyyy-xxxx-wwww-vvvvvvvvvvvv')
+parser = argparse.ArgumentParser()
+parser.add_argument('--production', help='production', action='store')
+args = parser.parse_args()
+config = read_file_json('~/.config/dataverse.json')
+if args.production:
+    api = Api(config['production']['url'], config['production']['key'])
+else:
+    api = Api(config['demo']['url'], config['demo']['key'])
 
 """The metadata should be in a dictionary based on a JSON file with the minimum required
 metadata, `dataset-minimal-metadata.json` (see Dataverse API documentation).
@@ -24,5 +30,5 @@ props = {
 }
 metadata = json.loads(Template(template).substitute(props))
 metadata['datasetVersion'].update(terms['type_1'])
-result = demo_api.dataset_create(dataverse_id='45', props=metadata)
-print(json.dumps(result, sort_keys=True, indent=2))
+# result = demo_api.dataset_create(dataverse_id='45', props=metadata)
+# print(json.dumps(result, sort_keys=True, indent=2))

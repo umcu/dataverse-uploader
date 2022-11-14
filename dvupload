@@ -7,16 +7,25 @@ It was inspired by the project pyDataverse by Stefan Kasberger, which was releas
 the MIT License(see PyPI).
 """
 
-import sys
+import sys, argparse
 from datetime import datetime
 from os import walk
 from os.path import join, split, relpath, abspath
 from xml.etree.ElementTree import parse
-from dave import Connection
+from dave import Connection, read_file_json
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--production', help='production', action='store')
+args = parser.parse_args()
+config = read_file_json('~/.config/dataverse.json')
 # Dataverse parameters
-DATAVERSE_URL = 'http://localhost:8080'
-DATAVERSE_API_TOKEN = 'xxxxxxxx-yyyy-zzzz-wwww-vvvvvvvvvvvv'
+if args.production:
+    DATAVERSE_URL = config['production']['url']
+    DATAVERSE_API_TOKEN = config['production']['key']
+else:
+    DATAVERSE_URL = config['demo']['url']
+    DATAVERSE_API_TOKEN = config['demo']['key']
+
 # upload and locking codes
 DISALLOW, CONDITIONAL, ALLOW = 0, 1, 2
 
