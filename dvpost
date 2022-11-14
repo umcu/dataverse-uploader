@@ -30,5 +30,5 @@ props = {
 }
 metadata = json.loads(Template(template).substitute(props))
 metadata['datasetVersion'].update(terms['type_1'])
-# result = demo_api.dataset_create(dataverse_id='45', props=metadata)
-# print(json.dumps(result, sort_keys=True, indent=2))
+result = api.dataset_create(dataverse_id='45', props=metadata)
+print(json.dumps(result, sort_keys=True, indent=2))
