@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+from dave import Api, read_file_json
+
+def print_file_stats(dataverse, dataset):
+    """print file contents of `dataset` in `dataverse` to stdout"""
+    version_data = {}
+    ds_versions = api.dataset_versions(dataset['id'])
+    for ds_version in ds_versions:
+        try:
+            major, minor = ds_version['versionNumber'], ds_version['versionMinorNumber']
+        except KeyError:
+            major, minor = 0, 0
+        version_data[f"{major}.{minor}"] = ds_version
+    highest = max(version_data.keys())
+    for file_desc in version_data[highest]['files']:
+        ds_id = dataset['id']
+        file_size, file_type = file_desc['dataFile']['filesize'], file_desc['dataFile'][
+            'contentType']
+        print(f"{dataverse};{ds_id};{file_desc['label']};{file_size};{file_type}")
+
+config = read_file_json('~/.config/dataverse.json')
+api = Api(config['production']['url'], config['production']['key'])
+
+# make list of id's of all dataverses
+main_contents = api.dataverse_contents('UMCU')
+dataverse_ids = [elt['id'] for elt in main_contents if elt['type'] == 'dataverse']
+main_id = api.dataverse_view('UMCU')['id']
+dataverse_ids.append(main_id)
+
+# make mapping of dataverse id's to dataverse aliases
+dataverse_alias = {main_id: 'UMCU'}
+for dataverse_id in dataverse_ids:
+    view = api.dataverse_view(dataverse_id)
+    dataverse_alias[view['id']] = view['alias']
+
+# for all dataverses, look up the datasets, and for each datasets list the file contents
+print("dataverse;dataset;file_name;file_size;file_type")
+for dataverse_id in dataverse_ids:
+    alias = dataverse_alias[dataverse_id]
+    for elt in api.dataverse_contents(dataverse_id):
+        if elt['type'] == 'dataset':
+            print_file_stats(alias, elt)
