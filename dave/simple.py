@@ -1,16 +1,22 @@
+"""Simple interface to Dataverse.
+Please read the API Guide at https://guides.dataverse.org/en/latest/api/index.html
+if you want to understand the implemented dataverse and dataset functions.
+"""
+
 from requests import get, put, post
 import json
 
-verbose = True # set this to False if you prefer less output
+verbose = False # set this to True if you prefer more output
 
 method_callable = {
     'GET': get, 'PUT': put, 'POST': post
 }
 
 class Api:
-    def __init__(self, base_url, api_token):
+    def __init__(self, base_url, api_token, readonly=False):
         self.base_url = base_url
         self.api_token = api_token
+        self.readonly = readonly
         self.headers = {'X-Dataverse-key': api_token, 'Content-Type': 'application/json'}
 
     def __str__(self):
@@ -41,6 +47,9 @@ class Api:
         else:
             payload = ''
         completed_endpoint = endpoint.format(url=self.base_url, **kwarg)
+        if self.readonly and method != 'GET':
+            print(f"[readonly] {method} {completed_endpoint}\n{payload}")
+            return
         response = method_callable[method](completed_endpoint, data=payload, headers=self.headers)
         code = response.status_code
         code_class = code // 100
@@ -89,6 +98,7 @@ class Api:
         return self.get_request("{url}/api/dataverses/{dvid}", dvid=dataverse_id)
 
     def dataverse_contents(self, dataverse_id):
+        """Retrieve contents of dataverse."""
         return self.get_request("{url}/api/dataverses/{dvid}/contents", dvid=dataverse_id)
 
     def dataverse_groups(self, dataverse_id):
@@ -109,3 +119,11 @@ class Api:
         """Add new dataset to this dataverse. The metadata should be in a dictionary `props` that
         is derived from on the file `dataset-minimal-metadata.json` (see Dataverse API documentation).`"""
         return self.post_request("{url}/api/dataverses/{dvid}/datasets", dvid=dataverse_id, props=props)
+
+    def dataset_versions(self, dataset_id):
+        """Retrieve versions of dataset."""
+        return self.get_request("{url}/api/datasets/{dvid}/versions", dvid=dataset_id)
+
+    def dataset_contents(self, dataset_id, verson):
+        """Retrieve contents of a version of a dataset."""
+        return self.get_request("{url}/api/dataverses/{dvid}/datasets", dvid=dataset_id)

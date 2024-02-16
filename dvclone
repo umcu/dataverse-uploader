@@ -2,10 +2,16 @@
 
 import csv
 from dave import Api, read_file_json
-
+"""
+Configuration file should look like this:
+{
+"production": {"url": "https://dataverse.nl",      "key": "..."},
+"demo":       {"url": "https://demo.dataverse.nl", "key": "..."}
+}
+"""
 config = read_file_json('~/.config/dataverse.json')
-prod_api = Api(config['production']['url'], config['production']['key'])
-demo_api = Api(config['demo']['url'], config['demo']['key'])
+prod_api = Api(config['production']['url'], config['production']['key'], readonly=True)
+demo_api = Api(config['demo']['url'], config['demo']['key'], readonly=True)
 
 # create sub-dataverses, starting from specification in CSV form
 dataverses_file = open('dataverses.csv', 'r')
@@ -17,9 +23,9 @@ for dv in csv.DictReader(dataverses_file, delimiter=';'):
 
 # copy groups from production environment to demo environment
 for gr in prod_api.dataverse_groups('UMCU'):
-    result = demo_api.dataverse_create_group('UMCU', name=gr['displayName'],
-                                             alias=gr['groupAliasInOwner'],
-                                             description=gr['description'])
+    result = demo_api.dataverse_add_group('UMCU', name=gr['displayName'],
+                                          alias=gr['groupAliasInOwner'],
+                                          description=gr['description'])
 
 # read groups from demo environment, so that we can map alias -> id (d)
 groups = demo_api.dataverse_groups('UMCU')
