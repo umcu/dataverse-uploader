@@ -11,10 +11,10 @@ Configuration file should look like this:
 """
 config = read_file_json('~/.config/dataverse.json')
 prod_api = Api(config['production']['url'], config['production']['key'])
-demo_api = Api(config['hvdemo']['url'], config['hvdemo']['key'])
+demo_api = Api(config['demo']['url'], config['demo']['key'])
 prod_root = 'UMCU'
-demo_root = 'umcu' # on demo.dataverse.org
-# demo_root = 'UMCU' # on demo.dataverse.nl
+# demo_root = 'umcu' # on demo.dataverse.org
+demo_root = 'UMCU' # on demo.dataverse.nl
 
 # create sub-dataverses, starting from specification in CSV form
 dataverses_file = open('dataverses.csv', 'r')
