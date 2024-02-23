@@ -46,11 +46,11 @@ class Api:
                 raise ValueError(f"props must be str or dict, not {type(props)}")
         else:
             payload = ''
-        completed_endpoint = endpoint.format(url=self.base_url, **kwarg)
+        path = endpoint.format(url=self.base_url, **kwarg)
         if self.readonly and method != 'GET':
-            print(f"[readonly] {method} {completed_endpoint}\n{payload}")
+            print(f"[readonly] {method} {path}\n{payload}")
             return
-        response = method_callable[method](completed_endpoint, data=payload, headers=self.headers)
+        response = method_callable[method](path, data=payload, headers=self.headers)
         code = response.status_code
         code_class = code // 100
         if code_class in [1, 2, 4]:
@@ -60,21 +60,21 @@ class Api:
                     print(resp_json['data'])
                 return resp_json['data']
             else:
-                print(f"{method} {completed_endpoint} -> code {code}")
+                print(f"{method} {path} -> code {code}")
                 print(f"no data property in {resp_json}")
-                return []
+                return resp_json
         elif code_class in [3, 5]:
             resp_json = response.json()
             if 'message' in resp_json:
                 message = resp_json['message']
                 print(message)
             else:
-                print(f"{method} {completed_endpoint} -> code {code}")
+                print(f"{method} {path} -> code {code}")
                 print(f"no message property in {resp_json}")
-            return []
+            return resp_json
         else:
-            print(f"{method} {completed_endpoint} -> unexpected status code {code}")
-            return []
+            print(f"{method} {path} -> unexpected status code {code}")
+            return None
 
     def get_request(self, endpoint, **kwarg):
         return self._request('GET', endpoint, **kwarg)
