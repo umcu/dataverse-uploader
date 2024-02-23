@@ -10,43 +10,60 @@ Configuration file should look like this:
 }
 """
 config = read_file_json('~/.config/dataverse.json')
-prod_api = Api(config['production']['url'], config['production']['key'], readonly=True)
-demo_api = Api(config['demo']['url'], config['demo']['key'], readonly=True)
+prod_api = Api(config['production']['url'], config['production']['key'])
+demo_api = Api(config['hvdemo']['url'], config['hvdemo']['key'])
+prod_root = 'UMCU'
+demo_root = 'umcu' # on demo.dataverse.org
+# demo_root = 'UMCU' # on demo.dataverse.nl
 
 # create sub-dataverses, starting from specification in CSV form
 dataverses_file = open('dataverses.csv', 'r')
 for dv in csv.DictReader(dataverses_file, delimiter=';'):
     alias = dv['alias']
-    if alias == 'UMCU': continue  # at the start, this one already exists
-    result = demo_api.dataverse_create('UMCU', name=dv['name'], alias=alias, email=dv['email'])
-    result = demo_api.dataverse_publish(alias)
+    if alias == prod_root: continue  # at the start, this one already exists
+    result = demo_api.dataverse_view(alias)
+    if result.get('id', None): # sub-dataverse `alias` already exists
+        print(f"sub-dataverse {alias} already exists")
+        pass # ideally we should adjust the contact email but there is no API endpoint for this
+    else: # create sub-dataverse
+        result = demo_api.dataverse_create(demo_root, name=dv['name'], alias=alias, email=dv['email'])
+        result = demo_api.dataverse_publish(alias)
 
 # copy groups from production environment to demo environment
-for gr in prod_api.dataverse_groups('UMCU'):
-    result = demo_api.dataverse_add_group('UMCU', name=gr['displayName'],
-                                          alias=gr['groupAliasInOwner'],
-                                          description=gr['description'])
+demo_groups = {}
+for gr in demo_api.dataverse_groups(demo_root):
+    demo_groups[gr['groupAliasInOwner']] = gr
+for gr in prod_api.dataverse_groups(prod_root):
+    alias = gr['groupAliasInOwner']
+    if alias in demo_groups: # this helps with repeated execution of this script on a demo environment
+        print(f"alias {alias} already exists")
+        continue
+    try:
+        result = demo_api.dataverse_add_group(demo_root, name=gr['displayName'],
+                                              alias=alias, description=gr['displayName'])
+    except KeyError:
+        print(f"no description in {gr}")
 
 # read groups from demo environment, so that we can map alias -> id (d)
-groups = demo_api.dataverse_groups('UMCU')
+groups = demo_api.dataverse_groups(demo_root)
 group_map = {gr['groupAliasInOwner']: gr['identifier'] for gr in groups}
 
 # make list of dataverses in both environments, so that we can map id (p) -> alias -> id (d)
-prod_ids = [elt['id'] for elt in prod_api.dataverse_contents('UMCU') if elt['type'] == 'dataverse']
-prod_ids.append(prod_api.dataverse_view('UMCU')['id'])
+prod_ids = [elt['id'] for elt in prod_api.dataverse_contents(prod_root) if elt['type'] == 'dataverse']
+prod_ids.append(prod_api.dataverse_view(prod_root)['id'])
 p_map = {}  # maps id to alias
 for dvid in prod_ids:
     view = prod_api.dataverse_view(dvid)
     p_map[view['id']] = view['alias']
-demo_ids = [elt['id'] for elt in demo_api.dataverse_contents('UMCU') if elt['type'] == 'dataverse']
-demo_ids.append(demo_api.dataverse_view('UMCU')['id'])
+demo_ids = [elt['id'] for elt in demo_api.dataverse_contents(demo_root) if elt['type'] == 'dataverse']
+demo_ids.append(demo_api.dataverse_view(demo_root)['id'])
 d_map = {}  # maps alias to id
 for dvid in demo_ids:
     view = demo_api.dataverse_view(dvid)
     d_map[view['alias']] = view['id']
 
 # in UMCU dataverse: assign role to group 'adminumcu'
-# in division dataverses: assign role to groups 'adminumcu', 'dsXXX', 'resXXX', where XXX identifies the division
+# in sub-dataverses: assign role to groups 'adminumcu', 'dsXXX', 'resXXX' (XXX=division code)
 #
 # read roles of dataverses on production site, where a role has the following content:
 # id    assignee                  roleId  _roleAlias definitionPointId
@@ -57,7 +74,16 @@ for dvid in prod_ids:
     for role in roles[dvid]:
         assignee = role['assignee']  # assignee in production database
         alias = assignee.split('-')[1]
-        if alias not in group_map: continue  # should not occur in theory
-        new_dvid = d_map[p_map[dvid]]
+        if alias not in group_map:
+            print(f"--> error: group_map lacks entry for alias '{alias}' of dataverse '{dvid}'")
+            continue
+        if dvid not in p_map:
+            print(f"--> error: p_map lacks entry for dataverse '{dvid}'")
+            continue
+        if p_map[dvid] == prod_root:
+            new_dvid = d_map[demo_root]
+        else:
+            new_dvid = d_map[p_map[dvid]]
         new_assignee = group_map[alias]  # assignee in demo database
+        print(f"dataverse {new_dvid}: {new_assignee} gets role {role['_roleAlias']}")
         demo_api.dataverse_add_role(new_dvid, new_assignee, role['_roleAlias'])
