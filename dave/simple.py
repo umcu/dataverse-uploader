@@ -3,13 +3,13 @@ Please read the API Guide at https://guides.dataverse.org/en/latest/api/index.ht
 if you want to understand the implemented dataverse and dataset functions.
 """
 
-from requests import get, put, post
+from requests import get, put, post, delete
 import json
 
 verbose = False # set this to True if you prefer more output
 
 method_callable = {
-    'GET': get, 'PUT': put, 'POST': post
+    'GET': get, 'PUT': put, 'POST': post, 'DELETE': delete
 }
 
 class Api:
@@ -85,6 +85,9 @@ class Api:
     def put_request(self, endpoint, **kwarg):
         return self._request('PUT', endpoint, **kwarg)
 
+    def delete_request(self, endpoint, **kwarg):
+        return self._request('DELETE', endpoint, **kwarg)
+
     def dataverse_create(self, dataverse_id, name, alias, email):
         contacts = [{'contactEmail': f'{elt}@umcutrecht.nl'} for elt in email.split(',')]
         props = {'name': name, 'alias': alias, 'dataverseContacts': contacts,
@@ -114,6 +117,10 @@ class Api:
     def dataverse_add_role(self, dataverse_id, assignee, role):
         props = {'assignee': assignee, 'role': role}
         return self.post_request("{url}/api/dataverses/{dvid}/assignments", dvid=dataverse_id, props=props)
+
+    def dataverse_delete_role(self, dataverse_id, assignment_id):
+        return self.delete_request("{url}/api/dataverses/{dvid}/assignments/{asid}",
+                                   dvid=dataverse_id, asid=assignment_id)
 
     def dataset_create(self, dataverse_id, props):
         """Add new dataset to this dataverse. The metadata should be in a dictionary `props` that
