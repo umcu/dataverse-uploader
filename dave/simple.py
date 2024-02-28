@@ -61,7 +61,7 @@ class Api:
                 return resp_json['data']
             else:
                 print(f"{method} {path} -> code {code}")
-                print(f"no data property in {resp_json}")
+                print(f"no data property in response: {resp_json}")
                 return resp_json
         elif code_class in [3, 5]:
             resp_json = response.json()
@@ -70,7 +70,7 @@ class Api:
                 print(message)
             else:
                 print(f"{method} {path} -> code {code}")
-                print(f"no message property in {resp_json}")
+                print(f"no message property in response: {resp_json}")
             return resp_json
         else:
             print(f"{method} {path} -> unexpected status code {code}")
