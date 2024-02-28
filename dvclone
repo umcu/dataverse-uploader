@@ -54,13 +54,17 @@ prod_ids.append(prod_api.dataverse_view(prod_root)['id'])
 p_map = {}  # maps id to alias
 for dvid in prod_ids:
     view = prod_api.dataverse_view(dvid)
-    p_map[view['id']] = view['alias']
+    alias = view['alias']
+    if alias == 'umcucc': continue
+    print(f"production: dataverse id={view['id']} alias={alias}")
+    p_map[view['id']] = alias
 demo_ids = [elt['id'] for elt in demo_api.dataverse_contents(demo_root) if elt['type'] == 'dataverse']
 demo_ids.append(demo_api.dataverse_view(demo_root)['id'])
 d_map = {}  # maps alias to id
 for dvid in demo_ids:
     view = demo_api.dataverse_view(dvid)
     d_map[view['alias']] = view['id']
+    print(f"demo: dataverse id={view['id']} alias={alias}")
 
 # in UMCU dataverse: assign role to group 'adminumcu'
 # in sub-dataverses: assign role to groups 'adminumcu', 'dsXXX', 'resXXX' (XXX=division code)
@@ -85,5 +89,5 @@ for dvid in prod_ids:
         else:
             new_dvid = d_map[p_map[dvid]]
         new_assignee = group_map[alias]  # assignee in demo database
-        print(f"dataverse {new_dvid}: {new_assignee} gets role {role['_roleAlias']}")
+        print(f"dataverse {dvid} -> {new_dvid}: assignee {new_assignee} receives role {role['_roleAlias']}")
         demo_api.dataverse_add_role(new_dvid, new_assignee, role['_roleAlias'])
