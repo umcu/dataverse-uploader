@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+
+# import modules
+import re, readline
+from dave import Api, read_file_json
+from itertools import chain
+
+# global variables
+match_exact = True
+api = None
+root = None
+
+# Auxiliary functions
+# ...
+
+# regular expressions used in commands
+patterns = {
+    'alpha'   : r'[a-zA-Z]+',
+    'digits'  : r'\d+',
+    'ids'     : r'\d+(?:\s+\d+)*',
+    'objectid': r'\w{24}',
+    'word'    : r'\w{2,20}'
+}
+
+commands = []
+
+class Command:
+    """Command definition."""
+    def __init__(self, pattern, regex, func):
+        """Constructor method for Command.
+
+        A Route object consists of (1) attributes that uniquely define the route,
+        and (2) attributes that are needed by the controller to call the route.
+
+        Attributes:
+            * pattern (str):      pattern (printable string)
+            * regex   (regex):    compiled regular expression
+            * func    (callable): function
+        """
+        self.pattern = pattern
+        self.regex   = regex
+        self.func    = func
+
+class command:
+    """Decorator for command functions.
+
+    This decorator stores the compiled regular expression and the function in a lookup table.
+    """
+    def __init__(self, pattern):
+        """Constructor for 'command' decorator.
+
+        Attributes:
+            * pattern  (str): URL pattern, given as a format string
+        """
+        self.pattern  = pattern
+    def __call__(self, wrapped):
+        regex = route2regex(self.pattern).replace(' ', r'\s+')
+        commands.append(Command(route2pattern(self.pattern), re.compile(regex), wrapped))
+        return wrapped
+
+def split_route(pattern):
+    return list(chain.from_iterable([p.split('}') for p in pattern.split('{')]))
+
+def route2pattern(pattern):
+    parts = split_route(pattern)
+    parts[1::2] = list(map(lambda p: '{{{0}}}'.format(p.split(':')[0]), parts[1::2]))
+    return ''.join(parts)
+
+def route2regex(pattern):
+    def split_lookup(s):
+        before, after = s.split(':')
+        return before, patterns[after]
+    parts = split_route(pattern)
+    parts[1::2] = list(map(lambda p: '(?P<{0}>{1})'.format(*split_lookup(p)), parts[1::2]))
+    parts.insert(0, '^')
+    parts.append('$')
+    return ''.join(parts)
+
+SEPARATOR = '  '
+def tabulate(table):
+    # check table structure
+    if len(table) == 0:
+        return ''
+    lens = [len(row) for row in table]
+    max_len = max(lens)
+    if any(len(row) != max_len for row in table):
+        print('unequal row lengths')
+        return
+    # compute maximum column widths
+    widths = [0] * len(table[0])
+    column_numbers = list(range(max_len))
+    for row in table:
+        for k in column_numbers:
+            widths[k] = max(widths[k], len(str(row[k])))
+    # prepare horizontal rules and format string
+    hrule = SEPARATOR.join('-' * widths[k] for k in column_numbers)
+    format_string = SEPARATOR.join(f"{{:<{widths[k]}}}" for k in column_numbers)
+    # format table
+    result = [format_string.format(*row) for row in table]
+    result.insert(0, hrule)
+    result.append(hrule)
+    return '\n'.join(result)
+
+@command('e {label:alpha}')
+def env_change(label):
+    global api, root
+    if label == 'd':
+        env = 'demo'
+    elif label == 'p':
+        env = 'production'
+    elif label == 'h':
+        env = 'harvard'
+    else:
+        print('toegestane waarden: d, h, p')
+        return
+    api = Api(config[env]['url'], config[env]['key'])
+    root = config[env]['root']
+
+def print_table(label, json):
+    if len(json) == 0:
+        return
+    print(label)
+    columns = list(json[0].keys())
+    table = []
+    table.append(columns)
+    for elt in json:
+        try:
+            row = [str(elt.get(column, '')) for column in columns]
+            table.append(row)
+        except KeyError:
+            print(elt)
+    print(tabulate(table))
+
+@command('dv {dvid:digits} v')
+def dv_view(dvid):
+    real_dvid = root if dvid == '0' else dvid
+    table = []
+    json = api.dataverse_view(real_dvid)
+    for key, value in json.items():
+        table.append([key, str(value)])
+    print(tabulate(table))
+
+@command('dv {dvid:digits} r')
+def dv_roles(dvid):
+    real_dvid = root if dvid == '0' else dvid
+    json = api.dataverse_roles(real_dvid)
+    print_table('roles', json)
+
+@command('dv {dvid:digits} g')
+def dv_groups(dvid):
+    real_dvid = root if dvid == '0' else dvid
+    json = api.dataverse_groups(real_dvid)
+    print_table('groups', json)
+
+@command('dv {dvid:digits} c')
+def dv_contents(dvid):
+    real_dvid = root if dvid == '0' else dvid
+    json = api.dataverse_contents(real_dvid)
+    if len(json) == 0:
+        print('...')
+        return
+    print_table('dataverses', [elt for elt in json if elt['type'] == 'dataverse'])
+    print_table('datasets',   [elt for elt in json if elt['type'] == 'dataset'])
+
+"""User interaction"""
+def match_command(user_input):
+    """find first entry in 'commands' table that matches 'user_input'."""
+    mo, func = None, None
+    for cmd in commands:
+        mo = cmd.regex.match(user_input)
+        if mo: # exit loop if matching command found
+            func = cmd.func
+            break
+    if func:
+        return mo, func
+    else:
+        return None, None
+
+def show_commands():
+    print('Beschikbare opdrachten')
+    print('----------------------')
+    print('\n'.join(sorted([cmd.pattern for cmd in commands])))
+
+def read_commands():
+    """read and perform commands until user says 'bye', 'stop' or 'quit'."""
+    prompt = '> '
+    while True:
+        answer = input(prompt).strip()
+        if answer in ['bye', 'stop', 'quit', 'q']:
+            raise StopIteration
+        elif answer in ['help', 'h']:
+            show_commands()
+        else:
+            match_object, func = match_command(answer)
+            if match_object:
+                func(**match_object.groupdict())
+            else:
+                print('Opdracht niet herkend')
+
+if __name__=='__main__':
+    config = read_file_json('~/.config/dataverse.json')
+    api = Api(config['demo']['url'], config['demo']['key'])
+    root = config['demo']['root']
+    readline.parse_and_bind('set editing-mode emacs')
+    # start command loop
+    try:
+        read_commands()
+    except StopIteration:
+        print('Klaar!')
