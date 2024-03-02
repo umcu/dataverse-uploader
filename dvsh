@@ -2,7 +2,7 @@
 
 # import modules
 import re, readline
-from dave import Api, read_file_json
+from dave import Api, read_file_json, write_file_json
 from itertools import chain
 
 # global variables
@@ -159,8 +159,44 @@ def dv_contents(dvid):
     if len(json) == 0:
         print('...')
         return
-    print_table('dataverses', [elt for elt in json if elt['type'] == 'dataverse'])
-    print_table('datasets',   [elt for elt in json if elt['type'] == 'dataset'])
+    try:
+        print_table('dataverses', [elt for elt in json if elt['type'] == 'dataverse'])
+    except TypeError:
+        print(json)
+    try:
+        print_table('datasets',   [elt for elt in json if elt['type'] == 'dataset'])
+    except TypeError:
+        print(json)
+
+ignore_ds_keys = ['storageIdentifier', 'license', 'termsOfAccess',
+                   'fileAccessRequest', 'metadataBlocks', 'files']
+
+@command('ds {dsid:digits} v')
+def ds_versions(dsid):
+    json = api.dataset_versions(dsid)
+    versions = []
+    for block in json:
+        new_block = {key:value for key, value in block.items() if key not in ignore_ds_keys}
+        versions.append(new_block)
+    print_table('versions', versions)
+
+@command('ds {dsid:digits} c')
+def ds_contents(dsid):
+    json = api.dataset_versions(dsid)
+    versions = {}
+    for block in json:
+        try:
+            major, minor = block['versionNumber'], block['versionMinorNumber']
+        except KeyError:
+            major, minor = 0, 0
+        versions[f"{major}.{minor}"] = block
+    highest = max(versions.keys())
+    file_list = versions[highest]['files']
+    for file_desc in file_list:
+        del file_desc['dataFile']['storageIdentifier']
+        del file_desc['dataFile']['checksum']
+        del file_desc['dataFile']['rootDataFileId']
+    print_table('files', file_list)
 
 """User interaction"""
 def match_command(user_input):
