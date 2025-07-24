@@ -41,6 +41,7 @@ def print_dataset_status(dataverse, dataset):
 
 config = read_file_json('~/.config/dataverse.json')
 api = Api(config['production']['url'], config['production']['key'])
+root = config['production']['root']
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--status',   action='store_true')
@@ -52,13 +53,13 @@ else:
     show_filesize, show_status = True, False
 
 # make list of id's of all dataverses
-main_contents = api.dataverse_contents('UMCU')
+main_contents = api.dataverse_contents(root)
 dataverse_ids = [elt['id'] for elt in main_contents if elt['type'] == 'dataverse']
-main_id = api.dataverse_view('UMCU')['id']
+main_id = api.dataverse_view(root)['id']
 dataverse_ids.append(main_id)
 
 # make mapping of dataverse id's to dataverse aliases
-dataverse_alias = {main_id: 'UMCU'}
+dataverse_alias = {main_id: root}
 for dataverse_id in dataverse_ids:
     view = api.dataverse_view(dataverse_id)
     dataverse_alias[view['id']] = view['alias']

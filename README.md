@@ -3,6 +3,8 @@ This repository contains scripts for
 1. uploading to a Dataverse server (`dvpost`)
 2. cloning a Dataverse setup (sub-dataverses, groups and roles) to another Dataverse server (`dvclone`)
 3. gathering statistics about file types and sizes (`dvstats`)
+4. converting a statistics file (SPSS or SAS) to a ZIP file that contains the data in CSV form, plus a codebook
+   (`stats2scv.py`)
 
 `dvstats --filesize` prints to standard output a CSV file with the file contents of all datasets.
 This can be used to calculate storage sizes per dataverse, for example.
