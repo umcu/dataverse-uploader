@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from dave import Api, read_file_json
+import argparse
 
 def print_file_stats(dataverse, dataset):
     """print file contents of `dataset` in `dataverse` to stdout"""
@@ -12,22 +13,43 @@ def print_file_stats(dataverse, dataset):
         except KeyError:
             major, minor = 0, 0
         version_data[f"{major}.{minor}"] = ds_version
-    highest = max(version_data.keys())
+    keys_sorted = sorted(version_data.keys())
+    highest = keys_sorted[-1]
     for file_desc in version_data[highest]['files']:
-        ds_id = dataset['id']
-        file_size, file_type = file_desc['dataFile']['filesize'], file_desc['dataFile'][
-            'contentType']
-        print(f"{dataverse};{ds_id};{file_desc['label']};{file_size};{file_type}")
+        file_size, file_type = file_desc['dataFile']['filesize'], file_desc['dataFile']['contentType']
+        print(f"{dataverse};{dataset['id']};\"{file_desc['label']}\";{file_size};{file_type}")
 
-"""
-Configuration file should look like this:
-{
-"production": {"url": "https://dataverse.nl",      "key": "..."},
-"demo":       {"url": "https://demo.dataverse.nl", "key": "..."}
-}
-"""
+def print_dataset_status(dataverse, dataset):
+    """print status and authors of `dataset` in `dataverse` to stdout"""
+    version_data = {}
+    ds_versions = api.dataset_versions(dataset['id'])
+    for ds_version in ds_versions:
+        try:
+            major, minor = ds_version['versionNumber'], ds_version['versionMinorNumber']
+        except KeyError:
+            major, minor = 0, 0
+        version_data[f"{major}.{minor}"] = ds_version
+    keys_sorted = sorted(version_data.keys())
+    highest = keys_sorted[-1]
+    statuses = ' | '.join(elt['latestVersionPublishingState'] for elt in ds_versions)
+    vh = version_data[highest]
+    md = vh['metadataBlocks']['citation']['fields']
+    authors = [elt['value'] for elt in md if elt['typeName'] == 'author'][0]
+    auth_s = ' | '.join(elt['authorName']['value'] for elt in authors)
+    url = vh['datasetPersistentId'].replace('doi:', 'https://doi.org/')
+    print(f"{alias};{url};{vh['lastUpdateTime']};{statuses};{auth_s}")
+
 config = read_file_json('~/.config/dataverse.json')
 api = Api(config['production']['url'], config['production']['key'])
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--status',   action='store_true')
+parser.add_argument('--filesize', action='store_true')
+args = parser.parse_args()
+if args.status:
+    show_filesize, show_status = False, True
+else:
+    show_filesize, show_status = True, False
 
 # make list of id's of all dataverses
 main_contents = api.dataverse_contents('UMCU')
@@ -42,9 +64,16 @@ for dataverse_id in dataverse_ids:
     dataverse_alias[view['id']] = view['alias']
 
 # for all dataverses, look up the datasets, and for each datasets list the file contents
-print("dataverse;dataset;file_name;file_size;file_type")
+if show_status:
+    print("dataverse;dataset;last_update;publishing_state;authors")
+else:
+    print("dataverse;dataset;file_name;file_size;file_type")
 for dataverse_id in dataverse_ids:
     alias = dataverse_alias[dataverse_id]
     for elt in api.dataverse_contents(dataverse_id):
-        if elt['type'] == 'dataset':
+        if elt['type'] != 'dataset':
+            continue
+        if show_status:
+            print_dataset_status(alias, elt)
+        else:
             print_file_stats(alias, elt)

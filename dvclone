@@ -2,13 +2,7 @@
 
 import csv
 from dave import Api, read_file_json
-"""
-Configuration file should look like this:
-{
-"production": {"url": "https://dataverse.nl",      "key": "..."},
-"demo":       {"url": "https://demo.dataverse.nl", "key": "..."}
-}
-"""
+
 config = read_file_json('~/.config/dataverse.json')
 prod_api = Api(config['production']['url'], config['production']['key'])
 demo_api = Api(config['demo']['url'], config['demo']['key'])
