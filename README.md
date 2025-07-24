@@ -22,7 +22,10 @@ Install this with (in a virtual environment, or globally):
 
 # Configuration
 All scripts assume that the API keys can be found in a configuration file `~/.config/dataverse.json`
-in the home directory of the user. This configuration file should look like this:
+in the home directory of the user. The user should generate the API keys in the web interface of Dataverse.
+Note: the API keys have a limited lifetime!
+
+This configuration file should look like this:
 
 ```
 {
