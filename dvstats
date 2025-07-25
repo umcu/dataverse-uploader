@@ -31,13 +31,19 @@ def print_dataset_status(dataverse, dataset):
         version_data[f"{major}.{minor}"] = ds_version
     keys_sorted = sorted(version_data.keys())
     highest = keys_sorted[-1]
-    statuses = ' | '.join(elt['latestVersionPublishingState'] for elt in ds_versions)
+    statuses = [elt['latestVersionPublishingState'] for elt in ds_versions]
+    if all(status == 'RELEASED' for status in statuses):
+        status_s = 'RELEASED'
+    elif all(status == 'DRAFT' for status in statuses):
+        status_s = 'DRAFT'
+    else:
+        status_s = ' | '.join(statuses)
     vh = version_data[highest]
     md = vh['metadataBlocks']['citation']['fields']
     authors = [elt['value'] for elt in md if elt['typeName'] == 'author'][0]
     auth_s = ' | '.join(elt['authorName']['value'] for elt in authors)
     url = vh['datasetPersistentId'].replace('doi:', 'https://doi.org/')
-    print(f"{alias};{url};{vh['lastUpdateTime']};{statuses};{auth_s}")
+    print(f"{alias};{url};{vh['lastUpdateTime']};{status_s};{auth_s}")
 
 config = read_file_json('~/.config/dataverse.json')
 api = Api(config['production']['url'], config['production']['key'])
