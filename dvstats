@@ -31,7 +31,7 @@ def print_dataset_status(dataverse, dataset):
         version_data[f"{major}.{minor}"] = ds_version
     keys_sorted = sorted(version_data.keys())
     highest = keys_sorted[-1]
-    statuses = [elt['latestVersionPublishingState'] for elt in ds_versions]
+    statuses = [elt['versionState'] for elt in ds_versions]
     if all(status == 'RELEASED' for status in statuses):
         status_s = 'RELEASED'
     elif all(status == 'DRAFT' for status in statuses):
